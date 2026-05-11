@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mini SIEM Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Mini SIEM Dashboard</h1>
+            <p>LANL Multi-Source Detection and Validation Dashboard</p>
+        </header>
+
+        <section class="cards">
+            <div class="card">
+                <h2>{{ total_events }}</h2>
+                <p>Total Events</p>
+            </div>
+            <div class="card">
+                <h2>{{ total_alerts }}</h2>
+                <p>Total Alerts</p>
+            </div>
+            <div class="card">
+                <h2>{{ validated }}</h2>
+                <p>Redteam-Validated Alerts</p>
+            </div>
+            <div class="card critical">
+                <h2>{{ critical_alerts }}</h2>
+                <p>Critical Alerts</p>
+            </div>
+            <div class="card">
+                <h2>{{ validation_rate }}%</h2>
+                <p>Validation Rate</p>
+            </div>
+        </section>
+
+        <section class="grid">
+            <div class="panel">
+                <h3>Alerts by Severity</h3>
+                <canvas id="severityChart"></canvas>
+            </div>
+
+            <div class="panel">
+                <h3>Alerts by Rule</h3>
+                <canvas id="ruleChart"></canvas>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h3>Alert Filters</h3>
+
+            <form method="GET" class="filters">
+                <select name="severity">
+                    <option value="">All Severities</option>
+                    <option value="critical" {% if severity_filter == "critical" %}selected{% endif %}>Critical</option>
+                    <option value="high" {% if severity_filter == "high" %}selected{% endif %}>High</option>
+                    <option value="low" {% if severity_filter == "low" %}selected{% endif %}>Low</option>
+                </select>
+
+                <select name="rule">
+                    <option value="">All Rules</option>
+                    <option value="timebound_auth_process_chain" {% if rule_filter == "timebound_auth_process_chain" %}selected{% endif %}>Auth + Process</option>
+                    <option value="timebound_process_network_chain" {% if rule_filter == "timebound_process_network_chain" %}selected{% endif %}>Process + Network</option>
+                    <option value="auth_process_network_chain" {% if rule_filter == "auth_process_network_chain" %}selected{% endif %}>Full Behavior Chain</option>
+                    <option value="redteam_dns_overlap" {% if rule_filter == "redteam_dns_overlap" %}selected{% endif %}>DNS Overlap</option>
+                </select>
+
+                <input
+                    type="text"
+                    name="system"
+                    placeholder="Search affected system..."
+                    value="{{ system_filter }}"
+                >
+
+                <button type="submit">Apply Filters</button>
+                <a class="reset-link" href="/">Reset</a>
+            </form>
+        </section>
+
+        <section class="panel">
+            <h3>Recent Alerts</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Rule</th>
+                        <th>Severity</th>
+                        <th>Affected System</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for alert in recent_alerts %}
+                    <tr>
+                        <td>{{ alert["timestamp"] }}</td>
+                        <td>{{ alert["rule_name"] }}</td>
+                        <td>
+                            <span class="badge {{ alert['severity'] }}">
+                                {{ alert["severity"] }}
+                            </span>
+                        </td>
+                        <td>{{ alert["src_ip"] }}</td>
+                        <td>{{ alert["description"] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="panel">
+            <h3>Detection Rules</h3>
+
+            <ul class="rules-list">
+                <li><strong>timebound_auth_process_chain</strong> — Authentication followed by process execution within a short time window.</li>
+                <li><strong>timebound_process_network_chain</strong> — Process execution followed by outbound network activity.</li>
+                <li><strong>auth_process_network_chain</strong> — Multi-stage correlation chain involving authentication, process execution, and network communication.</li>
+                <li><strong>redteam_dns_overlap</strong> — DNS activity associated with systems involved in known attacker behavior.</li>
+            </ul>
+        </section>
+
+        <footer>
+            <p>Mini SIEM Capstone Project | Trent Carter | COMP 460</p>
+        </footer>
+    </div>
+
+    <script>
+        const severityCounts = {{ severity_counts | tojson }};
+        const ruleCounts = {{ rule_counts | tojson }};
+
+        new Chart(document.getElementById("severityChart"), {
+            type: "bar",
+            data: {
+                labels: Object.keys(severityCounts),
+                datasets: [{
+                    label: "Alerts",
+                    data: Object.values(severityCounts)
+                }]
+            }
+        });
+
+        new Chart(document.getElementById("ruleChart"), {
+            type: "bar",
+            data: {
+                labels: Object.keys(ruleCounts),
+                datasets: [{
+                    label: "Alerts",
+                    data: Object.values(ruleCounts)
+                }]
+            },
+            options: {
+                indexAxis: "y"
+            }
+        });
+    </script>
+</body>
+</html>
